@@ -45,7 +45,6 @@ class TravelUser(models.Model):
         travel_places = TravelPlace.objects.filter(location=location)
         return Guide.objects.filter(travel_places__in=travel_places).distinct()
 
-# Note: Add a column that represents who cancelled the booking, either by guide_user or travel_user
 class BookGuide(models.Model):
     travel_user = models.ForeignKey(
         CustomUser,
@@ -89,3 +88,28 @@ class BookGuide(models.Model):
         if travel_place.location == self.travel_location:
             self.travel_place = travel_place
             self.save()
+            
+class ReportUser(models.Model):
+    guide_user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        limit_choices_to={'user_type': 'guide'},
+        related_name='reported_as_guide_user'
+    )
+    reported_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        limit_choices_to={'user_type': 'travel_user'},
+        related_name='reported_as_travel_user'
+    )
+    reason = models.TextField()
+    
+    def __str__(self) -> str:
+        return f"{self.guide_user.username} have been reported by {self.reported_by.username}"
+
+# Note: Not migrated and implemented.
+class GuideComment(models.Model):
+    guide_id = models.ForeignKey(Guide, on_delete=models.PROTECT)
+    message = models.TextField()
+    rating = models.DecimalField(default=5.0, max_digits=1, decimal_places=1)
+    commented_by = models.ForeignKey(CustomUser, on_delete=models.PROTECT, limit_choices_to={'user_type': 'travel_user'}, related_name='commented_as_travel_user')

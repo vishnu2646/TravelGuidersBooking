@@ -4,6 +4,7 @@ from .models import *
 admin.site.register(TravelPlace)
 admin.site.register(TravelUser)
 admin.site.register(Guide)
+admin.site.register(ReportUser)
 
 class BookGuidePanel(admin.ModelAdmin):
     model = BookGuide

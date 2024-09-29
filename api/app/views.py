@@ -46,14 +46,12 @@ def getGuidersByLocationAndName(request):
     else:
         place = {}
         
-    # Serialize travel places
     places_serializer = TravelPlaceSerializer(place, many=True)
     
     guides = Guide.objects.filter(travel_places__in=place).distinct()
     
     guides_serializer = GuideSerializer(guides, many=True)
 
-    # Combine places and guides into a custom response
     response_data = {
         "places": places_serializer.data,
         "guides": guides_serializer.data
@@ -93,7 +91,6 @@ def getAllTravelPlace(request):
 @permission_classes([IsAuthenticated])
 @user_type_required('travel_user')
 def getGuideDetails(request, id):
-    # guide_id = request.query_params.get("guide_id")
     guide = Guide.objects.get(id=id)
     serializer = GuideDetailSerializer(guide)
     return Response({ "message": "Guide Details", "guide": serializer.data }, status=status.HTTP_200_OK)
@@ -112,7 +109,6 @@ def book_guide_by_location(request):
     guide_user_data = guide_serializer.data['user']
     
     try:
-        # Fetch travel user and guide objects
         travel_user = CustomUser.objects.get(id=travel_user_id, user_type='travel_user')
         guide_user = CustomUser.objects.get(id=guide_user_data['id'], user_type='guide')
         
@@ -145,22 +141,19 @@ def book_guide_by_location(request):
 @api_view(['POST'])
 @user_type_required('guide')
 def updateGuideBookingStatus(request):
-    # Extract booking ID and status from the request data using get method
-    booking_id = request.data.get('bookingId')  # Use get() to safely access keys
-    new_status = request.data.get('status')     # Use get() to safely access keys
+    booking_id = request.data.get('bookingId')
+    new_status = request.data.get('status')
     cancel_reason = request.data.get('cancel_reason')
-    # Check if both bookingId and status are provided
+
     if not booking_id or not new_status:
         return Response({"error": "Booking ID and status are required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Fetch the booking object
         booking_data = BookGuide.objects.get(id=booking_id)
-        # Check if the guide in the booking matches the guide making the request
+
         if booking_data.guide_user != request.user:
             return Response({"error": "You are not authorized to update this booking"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Update the status based on the request
         if new_status == "confirmed":
             booking_data.status = 'confirmed'
             booking_data.save()
@@ -198,22 +191,19 @@ def get_user_booking_list(request):
 @api_view(['POST'])
 @user_type_required('travel_user')
 def cancel_booking_by_travel_user(request):
-    # Extract booking ID and status from the request data using get method
-    booking_id = request.data.get('bookingId')  # Use get() to safely access keys
-    new_status = request.data.get('status')     # Use get() to safely access keys
+    booking_id = request.data.get('bookingId')
+    new_status = request.data.get('status')
     cancel_reason = request.data.get('cancel_reason')
-    # Check if both bookingId and status are provided
+
     if not booking_id or not new_status:
         return Response({"error": "Booking ID and status are required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Fetch the booking object
         booking_data = BookGuide.objects.get(id=booking_id)
-        # Check if the guide in the booking matches the guide making the request
+
         if booking_data.travel_user != request.user:
             return Response({"error": "You are not authorized to update this booking"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Cancel the booking for guide and travel_location
         if new_status == "canceled":
             booking_data.status = 'cancelled'
             booking_data.canceled_by = request.user
@@ -226,3 +216,30 @@ def cancel_booking_by_travel_user(request):
     
     except BookGuide.DoesNotExist:
         return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['POST'])
+@user_type_required('travel_user')
+def report_guide(request):
+    travel_user = request.user
+    guide_id = request.data.get('guide_id')
+    reason = request.data.get('reason')
+    
+    guide = Guide.objects.get(id=guide_id)
+    guide_serializer = GuideSerializer(guide)
+    guide_user_data = guide_serializer.data['user']
+    
+    try:
+        guide_user = CustomUser.objects.get(id=guide_user_data['id'], user_type='guide')
+        
+        if not guide_user:
+            return Response({ "message": "Guide user not found." }, status=status.HTTP_404_NOT_FOUND)
+        
+        ReportUser.objects.create(
+            guide_user=guide_user,
+            reported_by=travel_user,
+            reason=reason,
+        )
+        
+        return Response({ "message": "Guide user has been Reported successfully and Actions will be taken as soon as possible." }, status=status.HTTP_200_OK)
+    except CustomUser.DoesNotExist:
+        return Response({ "message": "User does not exist." }, status=status.HTTP_404_NOT_FOUND)    

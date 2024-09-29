@@ -12,4 +12,5 @@ urlpatterns = [
     path('update-booking-status/', updateGuideBookingStatus, name='update-booking-status'),
     path('guide-booking-list/', get_guide_booking_list, name='guide_booking_list'),
     path('user-booking-list/', get_user_booking_list, name='user_booking_list'),
+    path('report-user/', report_guide, name='report_guide'),
 ]
